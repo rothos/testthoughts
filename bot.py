@@ -145,7 +145,9 @@ tweetlength = 140
 
 print('Fetching text sources...')
 
-# A list of all text blobs to be used in shuffling.
+# Fetch all the text data from various RSS feeds.
+# Give the user terminal output to update progress,
+# since it can be slow.
 nytSummaries = fetch_nytSummaries()
 print('  -> got NYT headlines')
 wikipediaFeaturedArticle = fetch_wikipediaFeaturedArticle()
@@ -157,6 +159,7 @@ print('  -> got cocktail recipes')
 onionSummaries = fetch_onionSummaries()
 print('  -> got The Onion headlines')
 
+# Here is the big list of texts.
 list_of_texts = [
     nytSummaries,
     wikipediaFeaturedArticle,
@@ -190,11 +193,12 @@ while not posted:
     tweets = break_into_bits(blob2, tweetlength)
     tweet = tweets[0].strip()
 
-    # Now tweet it.
+    # Ask the user if this one should be posted.
     print("The tweet is:\n")
     print(tweet)
     posted = query_yes_no("\nPost it?")
 
+# If we've broken out of the loop, it means we have a winner.
 tweet_it(tweet)
 
 print("Done :)")
