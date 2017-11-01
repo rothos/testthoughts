@@ -82,6 +82,7 @@ def fetch_nytSummaries():
     url = "http://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml"
     feed = feedparser.parse(url)
     summaries = [x.summary for x in feed.entries if len(x.summary)]
+    random.shuffle(summaries)
     return html_to_text(' '.join(summaries)).strip()
 
 # Returns a single string containing the summary of today's featured article.
@@ -93,6 +94,7 @@ def fetch_wikipediaFeaturedArticle():
     summary_minus_crap = summary.split("(Full")[0].strip()
     return summary_minus_crap
 
+# Returns a single string containing article titles of a randomly chosen topic.
 def fetch_arxivSummary():
     topics = [
         'astro-ph', 'cond-mat', 'cs', 'econ', 'eess', 'gr-qc', 'hep-ex',
@@ -105,18 +107,27 @@ def fetch_arxivSummary():
     summary = html_to_text(feed.entries[0].summary).strip()
     return summary
 
+# Returns a single string of some recipes.
 def fetch_cocktailRecipes():
     url = 'http://www.drinknation.com/rss/newest'
     feed = feedparser.parse(url)
     summaries = [x.summary for x in feed.entries if len(x.summary)]
+    random.shuffle(summaries)
     return html_to_text(' '.join(summaries)).strip()
 
+# Returns a single string of The Onion article headline summaries.
 def fetch_onionSummaries():
     url = "http://www.theonion.com/rss"
     feed = feedparser.parse(url)
     summaries = [x.summary for x in feed.entries if len(x.summary)]
+    random.shuffle(summaries)
     cleaned = [html_to_text(x.split("Read more...")[0].strip()) for x in summaries]
     return (' '.join(cleaned)).strip()
+
+# Remove the first N words of the text, where N is randomly chosen in [0,30).
+# This amounts to producing a "phase shift" in the chopped lines.
+def clip(text):
+    return text.split(' ', random.randint(0,30))[-1]
 
 # Posts a tweet, properly encoded and all.
 def tweet_it(text):
@@ -135,34 +146,44 @@ tweetlength = 140
 print('Fetching text sources...')
 
 # A list of all text blobs to be used in shuffling.
+nytSummaries = fetch_nytSummaries()
+print('  -> got NYT headlines')
+wikipediaFeaturedArticle = fetch_wikipediaFeaturedArticle()
+print('  -> got Wikipedia featured article')
+arxivSummary = fetch_arxivSummary()
+print('  -> got Arxiv article titles')
+cocktailRecipes = fetch_cocktailRecipes()
+print('  -> got cocktail recipes')
+onionSummaries = fetch_onionSummaries()
+print('  -> got The Onion headlines')
+
 list_of_texts = [
-    fetch_nytSummaries(),
-    fetch_wikipediaFeaturedArticle(),
-    fetch_arxivSummary(),
-    fetch_cocktailRecipes(),
-    fetch_onionSummaries()
+    nytSummaries,
+    wikipediaFeaturedArticle,
+    arxivSummary,
+    cocktailRecipes,
+    onionSummaries
     ]
 
 print('Done. Processing text...')
 
-# All the text lines we're working with.
-all_text = ' '.join(list_of_texts)
-
 # We'll loop through until we get a satisfactory one.
 posted = False
 while not posted:
-    # Clip off a few words from the front (amounts to
-    # a 'phase shift' of the lines.)
-    clipped_text = all_text.split(' ', random.randint(0,30))[-1]
-    lines = break_into_bits(clipped_text, linelength)
+    # A big blob of text.
+    all_text = ' '.join([clip(s) for s in shuffle(list_of_texts)])
 
-    # Shuffle them (creates new array).
+    # Break up the lines into bits.
+    lines = break_into_bits(all_text, linelength)
+
+    # Shuffle them (this creates a new array).
     shuffled_lines = shuffle(lines)
 
     # Stitch them together, wrap them again at 140 chars, and take the first line.
     blob = ' '.join(shuffled_lines)
 
-    # As a test: make every tweet begin at the beginning of a sentence.
+    # Testing this: make every tweet begin at the beginning of a sentence.
+    # (Or rather, after a period. Not the same.)
     blob2 = blob[(blob.find('.')+1):].strip()
 
     # Break it up and take the first.
