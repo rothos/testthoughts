@@ -199,6 +199,6 @@ while not posted:
     posted = query_yes_no("\nPost it?")
 
 # If we've broken out of the loop, it means we have a winner.
+print('Tweeting...')
 tweet_it(tweet)
-
-print("Done :)")
+print("Done. Output has been written in twurl.log.")
