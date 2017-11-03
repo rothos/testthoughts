@@ -2,6 +2,7 @@ import os
 import random
 import textwrap
 import feedparser
+import re
 
 
 #---- borrowed from ------------------------------------------------
@@ -77,52 +78,60 @@ def break_into_bits(text, linelength):
 def shuffle(array):
     return random.sample(array, len(array))
 
-# Returns a single string text blog of NYT daily article summaries.
+# Returns an array of strings
+# of NYT daily article summaries.
 def fetch_nytSummaries():
     url = "http://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml"
     feed = feedparser.parse(url)
     summaries = [x.summary for x in feed.entries if len(x.summary)]
-    random.shuffle(summaries)
-    return html_to_text(' '.join(summaries)).strip()
+    summaries = [html_to_text(s).strip() for s in summaries]
+    return summaries
 
-# Returns a single string containing the summary of today's featured article.
+# Returns an array of strings
+# of summaries of featured article(s).
 def fetch_wikipediaFeaturedArticle():
     url = "https://en.wikipedia.org/w/api.php?action=featuredfeed" \
         + "&feed=featured&feedformat=atom"
     feed = feedparser.parse(url)
     summary = html_to_text(feed.entries[0].summary)
     summary_minus_crap = summary.split("(Full")[0].strip()
-    return summary_minus_crap
+    return [summary_minus_crap]
 
-# Returns a single string containing article titles of a randomly chosen topic.
-def fetch_arxivSummary():
+# Returns an array of strings
+# of summaries articles from N randomly chosen topics.
+def fetch_arxivSummary(n=1):
     topics = [
         'astro-ph', 'cond-mat', 'cs', 'econ', 'eess', 'gr-qc', 'hep-ex',
         'hep-lat', 'hep-ph', 'hep-th', 'math', 'math-ph', 'nlin', 'nucl-ex',
         'nucl-th', 'physics', 'q-bio', 'q-fin', 'quant-ph', 'stat'
         ]
-    topic = random.sample(topics, 1)[0]
-    url = 'http://export.arxiv.org/rss/' + topic
-    feed = feedparser.parse(url)
-    summary = html_to_text(feed.entries[0].summary).strip()
-    return summary
+    topics = random.sample(topics, n)
+    summaries = []
+    for topic in topics:
+        url = 'http://export.arxiv.org/rss/' + topic
+        feed = feedparser.parse(url)
+        summary = html_to_text(feed.entries[0].summary).strip()
+        summaries += [summary]
+    return summaries
 
-# Returns a single string of some recipes.
+# Returns an array of strings
+# of some recipes.
 def fetch_cocktailRecipes():
     url = 'http://www.drinknation.com/rss/newest'
     feed = feedparser.parse(url)
     summaries = [x.summary for x in feed.entries if len(x.summary)]
-    random.shuffle(summaries)
-    return html_to_text(' '.join(summaries)).strip()
+    summaries = [html_to_text(s).strip() for s in summaries]
+    return summaries
 
-# Returns a single string of The Onion article headline summaries.
+# Returns an array of strings
+# of The Onion article headline summaries.
 def fetch_onionSummaries():
     url = "http://www.theonion.com/rss"
     feed = feedparser.parse(url)
     summaries = [x.summary for x in feed.entries if len(x.summary)]
-    random.shuffle(summaries)
-    cleaned = [html_to_text(x.split("Read more...")[0].strip()) for x in summaries]
-    return (' '.join(cleaned)).strip()
+    summaries = [x.split("Read more...")[0].strip() for x in summaries]
+    summaries = [html_to_text(s).strip() for s in summaries]
+    return summaries
 
 # Remove the first N words of the text, where N is randomly chosen in [0,30).
 # This amounts to producing a "phase shift" in the chopped lines.
@@ -160,13 +169,14 @@ onionSummaries = fetch_onionSummaries()
 print('  -> got The Onion headlines')
 
 # Here is the big list of texts.
-list_of_texts = [
+# The sum() function flattens the list.
+list_of_texts = sum([
     nytSummaries,
     wikipediaFeaturedArticle,
     arxivSummary,
     cocktailRecipes,
     onionSummaries
-    ]
+    ], [])
 
 print('Done. Processing text...')
 
@@ -186,8 +196,10 @@ while not posted:
     blob = ' '.join(shuffled_lines)
 
     # Testing this: make every tweet begin at the beginning of a sentence.
-    # (Or rather, after a period. Not the same.)
-    blob2 = blob[(blob.find('.')+1):].strip()
+    # (Or rather, begin wherever it matches my regex garbage.)
+    # blob2 = blob[(blob.find('. ')+1):].strip() # old
+    blob2 = blob[re.search('[!\.\?][^\w\d]*\s+([A-Z])',blob).start(1):]
+    blob2 = blob2.strip()
 
     # Break it up and take the first.
     tweets = break_into_bits(blob2, tweetlength)
@@ -196,7 +208,7 @@ while not posted:
     # Ask the user if this one should be posted.
     print("The tweet is:\n")
     print(tweet)
-    posted = query_yes_no("\nPost it?")
+    posted = query_yes_no("\nPost it?", "no")
 
 # If we've broken out of the loop, it means we have a winner.
 print('Tweeting...')
